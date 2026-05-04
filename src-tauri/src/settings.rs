@@ -1,13 +1,18 @@
-//! Persisted app settings (TOML in `app_data_dir`) and API key (in OS keystore — Fase 6).
+//! Persisted app settings (TOML in `app_data_dir`) and API key (OS keystore).
 //!
-//! This module owns the on-disk config schema. The actual file I/O and the
-//! `app_data_dir` resolution land in Fase 6 once we wire up Tauri commands;
-//! for now we expose [`parse_toml`] / [`to_toml`] so the rest of the app can
-//! be built and tested against the data model.
+//! Two storage tiers, on purpose:
+//! - **Settings TOML** at `<app_data_dir>/settings.toml`: non-secret prefs
+//!   (default engine, default model, UI language, prompt templates). Plain
+//!   text, easy to inspect and version-control if the user wants to back up.
+//! - **API key in keystore** (Windows Credential Manager / macOS Keychain /
+//!   libsecret) under service `mediascribe`, account `openai`. Never written
+//!   to disk in plain text.
 
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 /// On-disk app settings. Each field has a `serde(default)` so old config
 /// files keep loading after we add new fields.
@@ -70,6 +75,110 @@ pub fn parse_toml(s: &str) -> Result<Settings, toml::de::Error> {
 /// Serializes [`Settings`] to TOML.
 pub fn to_toml(settings: &Settings) -> Result<String, toml::ser::Error> {
     toml::to_string_pretty(settings)
+}
+
+// === On-disk persistence ===
+
+/// Conventional filename inside `app_data_dir`.
+pub const SETTINGS_FILENAME: &str = "settings.toml";
+
+/// Errors from [`load`] / [`save`].
+#[derive(Debug, Error)]
+pub enum SettingsIoError {
+    #[error("io error at {path}: {source}")]
+    Io {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("could not parse settings TOML: {0}")]
+    Parse(#[from] toml::de::Error),
+
+    #[error("could not serialize settings to TOML: {0}")]
+    Serialize(#[from] toml::ser::Error),
+}
+
+/// Resolves `<dir>/settings.toml`.
+pub fn settings_path(app_data_dir: &Path) -> PathBuf {
+    app_data_dir.join(SETTINGS_FILENAME)
+}
+
+/// Loads settings from `<app_data_dir>/settings.toml`. If the file doesn't
+/// exist, returns [`Settings::default`] — first-run UX.
+pub fn load(app_data_dir: &Path) -> Result<Settings, SettingsIoError> {
+    let path = settings_path(app_data_dir);
+    if !path.exists() {
+        return Ok(Settings::default());
+    }
+    let contents = std::fs::read_to_string(&path).map_err(|source| SettingsIoError::Io {
+        path: path.clone(),
+        source,
+    })?;
+    Ok(parse_toml(&contents)?)
+}
+
+/// Saves settings to `<app_data_dir>/settings.toml`, creating the directory
+/// if needed. Atomic-ish: writes to a `.tmp` sibling then renames.
+pub fn save(app_data_dir: &Path, settings: &Settings) -> Result<(), SettingsIoError> {
+    std::fs::create_dir_all(app_data_dir).map_err(|source| SettingsIoError::Io {
+        path: app_data_dir.to_path_buf(),
+        source,
+    })?;
+    let path = settings_path(app_data_dir);
+    let tmp = path.with_extension("toml.tmp");
+    let body = to_toml(settings)?;
+    std::fs::write(&tmp, body).map_err(|source| SettingsIoError::Io {
+        path: tmp.clone(),
+        source,
+    })?;
+    std::fs::rename(&tmp, &path).map_err(|source| SettingsIoError::Io {
+        path: path.clone(),
+        source,
+    })?;
+    Ok(())
+}
+
+// === API key in OS keystore ===
+
+/// Service name we register under in the OS keystore.
+pub const KEYRING_SERVICE: &str = "mediascribe";
+/// Account / username used in the keystore entry. We only manage one OpenAI key.
+pub const KEYRING_ACCOUNT_OPENAI: &str = "openai";
+
+/// Errors from API key keystore operations.
+#[derive(Debug, Error)]
+pub enum KeyringError {
+    #[error("keyring error: {0}")]
+    Keyring(#[from] keyring::Error),
+}
+
+/// Stores the OpenAI API key in the OS keystore.
+pub fn save_openai_api_key(key: &str) -> Result<(), KeyringError> {
+    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_ACCOUNT_OPENAI)?;
+    entry.set_password(key)?;
+    Ok(())
+}
+
+/// Loads the OpenAI API key from the OS keystore. Returns `Ok(None)` if no
+/// entry has been set yet (first-run / not configured).
+pub fn load_openai_api_key() -> Result<Option<String>, KeyringError> {
+    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_ACCOUNT_OPENAI)?;
+    match entry.get_password() {
+        Ok(s) => Ok(Some(s)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(e) => Err(KeyringError::Keyring(e)),
+    }
+}
+
+/// Deletes the stored OpenAI API key, if any. No-op when nothing is stored.
+pub fn delete_openai_api_key() -> Result<(), KeyringError> {
+    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_ACCOUNT_OPENAI)?;
+    match entry.delete_credential() {
+        Ok(()) => Ok(()),
+        Err(keyring::Error::NoEntry) => Ok(()),
+        Err(e) => Err(KeyringError::Keyring(e)),
+    }
 }
 
 #[cfg(test)]
@@ -165,5 +274,43 @@ mod tests {
         let serialized = to_toml(&original).expect("must serialize");
         let parsed = parse_toml(&serialized).expect("must parse back");
         assert_eq!(parsed, original);
+    }
+
+    // === settings_path / load / save ===
+
+    #[test]
+    fn settings_path_appends_filename() {
+        let dir = std::path::PathBuf::from("/tmp/mediascribe");
+        assert_eq!(settings_path(&dir), dir.join("settings.toml"));
+    }
+
+    #[test]
+    fn load_from_missing_dir_returns_defaults() {
+        let nonexistent = std::path::PathBuf::from("/this/path/does/not/exist/at/all");
+        let s = load(&nonexistent).expect("missing dir should yield defaults");
+        assert_eq!(s, Settings::default());
+    }
+
+    #[test]
+    fn save_then_load_round_trip_via_disk() {
+        // Use a temp dir uniquely scoped to this test
+        let tmp = std::env::temp_dir().join(format!(
+            "mediascribe-settings-test-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let mut original = Settings::default();
+        original.default_engine = "api".into();
+        original
+            .prompt_templates
+            .insert("python".into(), "Clase de Python.".into());
+
+        save(&tmp, &original).expect("save should work");
+        let loaded = load(&tmp).expect("load should work");
+        assert_eq!(loaded, original);
+
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
