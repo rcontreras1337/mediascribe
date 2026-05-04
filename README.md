@@ -52,6 +52,11 @@ Installers land in `src-tauri/target/release/bundle/`.
 - [OpenAI API](https://platform.openai.com/) — `gpt-4o-transcribe`.
 - [ffmpeg](https://ffmpeg.org/) — bundled as sidecar binary.
 
+## Roadmap
+
+See [`docs/PLAN.md`](docs/PLAN.md) for the full implementation plan: use cases,
+allowed/disallowed behaviors, architecture, TDD phases, and risks.
+
 ## License
 
 [MIT](LICENSE) — © 2026 Ruben Contreras.

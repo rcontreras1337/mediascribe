@@ -1,33 +1,46 @@
-.DS_Store
-Thumbs.db
+# === SENSITIVE FILES — NEVER COMMIT ===
+# If you ever accidentally commit any of these, treat the secret as
+# compromised, rotate it, and rewrite git history before pushing.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.pfx
+secrets.json
+secrets.toml
+credentials.json
+*credential*
+*.api-key
+auth.toml
+
+# === Build / generated ===
 node_modules
 /build
 /.svelte-kit
 /package
-.env
-.env.*
-!.env.example
+target/
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Rust / Cargo (also covered in src-tauri/.gitignore but be defensive)
-target/
-
-# IDE
-.idea/
-*.swp
-*.swo
-
+# === User-local data ===
+# Whisper models can be 3 GB
+models/
+# Local-only test fixtures
+*.local
 # Logs
 *.log
 logs/
+# Cached transcriptions from manual testing
+*.api.txt
+*.api.mp3
+*.api.chunks/
 
-# OS
+# === IDE / OS ===
+.idea/
+*.swp
+*.swo
+.DS_Store
 .AppleDouble
 .LSOverride
-
-# User-local model cache (Whisper models can be 3 GB; never commit)
-models/
-
-# Test fixtures we don't want in repo (fixtures used by tests live in src-tauri/tests/fixtures/)
-*.local
+Thumbs.db
