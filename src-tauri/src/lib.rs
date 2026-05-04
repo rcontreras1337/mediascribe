@@ -1,6 +1,7 @@
 pub mod api_pricing;
 pub mod audio;
 pub mod chunk;
+pub mod commands;
 pub mod engines;
 pub mod ffmpeg_sidecar;
 pub mod model_manager;
@@ -8,19 +9,23 @@ pub mod prompt;
 pub mod settings;
 pub mod srt;
 
-// Placeholder command kept from the Tauri scaffold; replaced with real commands
-// once Fase 2+ adds them.
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
+use std::sync::Arc;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .manage(Arc::new(commands::AppState::new()))
+        .invoke_handler(tauri::generate_handler![
+            commands::get_settings,
+            commands::save_settings,
+            commands::set_api_key,
+            commands::has_api_key,
+            commands::delete_api_key,
+            commands::download_model,
+            commands::transcribe,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
