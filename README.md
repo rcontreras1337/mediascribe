@@ -1,5 +1,7 @@
 # mediascribe
 
+> **Read this in another language:** [Español](README.es.md)
+
 Cross-platform desktop app to transcribe video / audio with **local Whisper** or **OpenAI API**, tuned for Spanish + English code-switching (university lectures, technical talks).
 
 > **Status: alpha.** Under active development. Not yet ready for general use.
@@ -89,12 +91,50 @@ Dev mode:
 npm run tauri dev
 ```
 
-Production build:
+Production build (API engine only, no local engine):
 ```bash
 npm run tauri build
 ```
 
 Installers land in `src-tauri/target/release/bundle/`.
+
+## Enable the local engine (optional)
+
+The local engine runs `whisper.cpp` on your own machine — free, offline,
+GPU-accelerated. It's an opt-in build because compiling `whisper-rs`
+needs **LLVM/libclang** to drive bindgen (whisper.cpp is C++, bindgen
+generates the Rust FFI bindings).
+
+One-time setup (Windows):
+
+```powershell
+# 1. Install LLVM (admin terminal, ~600 MB)
+winget install --id LLVM.LLVM -e
+
+# 2. Close all terminals, open a new one, verify
+clang --version
+```
+
+Then build the app with the local engine + GPU enabled:
+
+```powershell
+cd mediascribe
+npm run tauri:build:cuda
+```
+
+That produces a new MSI under `src-tauri/target/release/bundle/msi/`
+with the local engine wired up. Inside the app:
+
+- The **"Local"** option in the engine selector becomes functional.
+- The first time you transcribe locally, the app downloads the chosen
+  Whisper model (e.g. `large-v3` is ~3 GB) from HuggingFace into
+  `%APPDATA%\mediascribe\models\`. Subsequent runs reuse the cache.
+- Transcription happens entirely on your machine. No network, no cost
+  per minute.
+
+CUDA at build time requires the **CUDA Toolkit** (with `nvcc`). If you
+only have CPU available, swap `tauri:build:cuda` for a `--features local-engine`
+build (CPU only). Edit `package.json` to add a script if needed.
 
 ## Tech stack
 
