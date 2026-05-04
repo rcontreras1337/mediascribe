@@ -1,4 +1,5 @@
 pub mod api_pricing;
+pub mod audio;
 pub mod chunk;
 pub mod engines;
 pub mod prompt;
