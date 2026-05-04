@@ -3,6 +3,7 @@ pub mod audio;
 pub mod chunk;
 pub mod engines;
 pub mod ffmpeg_sidecar;
+pub mod model_manager;
 pub mod prompt;
 pub mod settings;
 pub mod srt;

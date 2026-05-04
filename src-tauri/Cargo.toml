@@ -18,6 +18,14 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+[features]
+default = []
+# whisper-rs and hound are gated behind a feature flag so the project still
+# compiles on machines without LLVM/libclang. Once LLVM is installed enable
+# `local-engine` (or `cuda`) and the local Whisper engine becomes available.
+local-engine = ["whisper-rs", "hound"]
+cuda = ["local-engine", "whisper-rs/cuda"]
+
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
@@ -26,4 +34,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"
 thiserror = "1"
+whisper-rs = { version = "0.13", optional = true }
+hound = { version = "3.5", optional = true }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "json", "multipart"] }
+tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread", "sync"] }
+futures-util = "0.3"
+sha2 = "0.10"
+hex = "0.4"
 

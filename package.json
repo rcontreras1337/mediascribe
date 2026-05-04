@@ -12,7 +12,9 @@
     "prepare": "svelte-kit sync",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:dev:cuda": "tauri dev --features cuda",
+    "tauri:build:cuda": "tauri build --features cuda"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
