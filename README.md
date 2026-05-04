@@ -18,9 +18,36 @@ You decide which engine to use per video — no automatic fallback that surprise
 ## Features
 
 - Drag & drop a video file, get `.txt` and `.srt`.
-- Resume interrupted transcriptions without re-paying for completed chunks.
+- Editable `initial_prompt` with reusable templates saved per topic.
 - Echo-of-prompt detection (a known quirk of `gpt-4o-transcribe` on silent / very short chunks).
-- Cross-platform: Windows + macOS.
+- API key stored in the OS keystore (Windows Credential Manager / macOS Keychain), never on disk.
+- Cross-platform: Windows + macOS (macOS support is planned, current build targets Windows).
+
+## Using the app
+
+After installing the MSI (or running `npm run tauri dev`):
+
+1. **Open Settings** (top-right) and paste your OpenAI API key. Click Save —
+   it goes into the OS keystore, not disk.
+2. Back to **Main**. Click **"Choose video / audio file"** and pick your video
+   (mp4, mkv, mov, mp3, m4a, wav, ...).
+3. Pick **engine**: `API` (recommended for quality) or `Local` (requires the
+   `cuda` build feature and an LLVM install on the dev machine).
+4. Pick the **API model** and **language** (default: `gpt-4o-transcribe`, `es`).
+5. **Edit the initial prompt** — list domain-specific words the speaker will
+   use (function names, jargon, proper nouns). Optionally save it as a
+   template for next time.
+6. Click **Transcribe**. Watch the progress per chunk.
+7. When done, the app shows the path of the `.txt` and `.srt`. Click **"Open
+   folder"** to navigate there.
+
+The outputs land **next to the source video**, named `<video>.api.txt` /
+`.api.srt` (or `.local.*` if you used the local engine).
+
+> **Note on `.srt` for the API engine:** `gpt-4o-transcribe` only returns
+> plain text, no per-segment timestamps. The `.srt` we emit is a single
+> block spanning the whole audio. For real per-line timestamps, use the
+> local engine (`--features cuda` build).
 
 ## Build from source
 
