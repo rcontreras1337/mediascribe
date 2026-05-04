@@ -26,6 +26,9 @@ vite.config.ts.timestamp-*
 # === User-local data ===
 # Whisper models can be 3 GB
 models/
+# ffmpeg / ffprobe sidecars (~150 MB), fetched per-platform via scripts/
+src-tauri/binaries/*
+!src-tauri/binaries/.gitkeep
 # Local-only test fixtures
 *.local
 # Logs

@@ -34,10 +34,35 @@ Requirements:
 git clone git@github.com:rcontreras1337/mediascribe.git
 cd mediascribe
 npm install
+```
+
+### Fetch ffmpeg sidecar binaries
+
+The app calls bundled `ffmpeg` and `ffprobe` binaries. They are not committed
+(~150 MB combined). Fetch them once per machine:
+
+**Windows** (PowerShell):
+```powershell
+.\scripts\fetch-ffmpeg.ps1
+```
+
+**macOS** (bash) — placeholder, not wired up yet:
+```bash
+./scripts/fetch-ffmpeg.sh
+```
+
+This downloads static builds and places them at `src-tauri/binaries/`
+with the target-triple naming Tauri expects. Re-run any time you change
+host platforms.
+
+### Run
+
+Dev mode:
+```bash
 npm run tauri dev
 ```
 
-For a production build:
+Production build:
 ```bash
 npm run tauri build
 ```

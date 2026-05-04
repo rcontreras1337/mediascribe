@@ -1,0 +1,4 @@
+# Sidecar binaries (ffmpeg, ffprobe) live in this directory.
+# They are git-ignored on purpose: each platform downloads its own via
+# `scripts/fetch-ffmpeg.ps1` (Windows) or `scripts/fetch-ffmpeg.sh` (macOS).
+# This file just keeps the directory present in the repo.

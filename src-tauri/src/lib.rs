@@ -2,6 +2,7 @@ pub mod api_pricing;
 pub mod audio;
 pub mod chunk;
 pub mod engines;
+pub mod ffmpeg_sidecar;
 pub mod prompt;
 pub mod settings;
 pub mod srt;
@@ -17,6 +18,7 @@ fn greet(name: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![greet])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
