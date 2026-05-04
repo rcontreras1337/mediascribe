@@ -1,0 +1,41 @@
+name: Tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# Cancel stale runs from the same branch — saves runner time when you push
+# multiple commits in a row.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: Unit tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # Only --lib so we run the fast in-source unit tests, not anything in
+      # tests/ (integration dir) or examples/. Heavy/E2E tests run locally.
+      # See: memory/feedback_ci_only_unit_tests.md
+      - name: cargo test --lib
+        working-directory: src-tauri
+        run: cargo test --lib --no-fail-fast
